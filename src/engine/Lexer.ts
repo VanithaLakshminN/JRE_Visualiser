@@ -5,9 +5,9 @@ export const TokenType = {
   Class: 'Class', Public: 'Public', Private: 'Private', Protected: 'Protected',
   Static: 'Static', Void: 'Void', Int: 'Int', Boolean: 'Boolean', Double: 'Double',
   Char: 'Char', Float: 'Float', Long: 'Long',
-  String: 'String', New: 'New', This: 'This', Null: 'Null',
+  String: 'String', New: 'New', This: 'This', Null: 'Null', Super: 'Super',
   If: 'If', Else: 'Else', For: 'For', While: 'While', Return: 'Return',
-  Import: 'Import',
+  Import: 'Import', Abstract: 'Abstract', Extends: 'Extends',
 
   // Identifiers & Literals
   Identifier: 'Identifier', Number: 'Number', StringLiteral: 'StringLiteral',
@@ -48,7 +48,8 @@ const KEYWORDS: Record<string, TokenType> = {
   'null': TokenType.Null, 'if': TokenType.If, 'else': TokenType.Else,
   'for': TokenType.For, 'while': TokenType.While, 'return': TokenType.Return,
   'true': TokenType.BooleanLiteral, 'false': TokenType.BooleanLiteral,
-  'import': TokenType.Import
+  'import': TokenType.Import, 'abstract': TokenType.Abstract,
+  'extends': TokenType.Extends, 'super': TokenType.Super
 };
 
 export class Lexer {

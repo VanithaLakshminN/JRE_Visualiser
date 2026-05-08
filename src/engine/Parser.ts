@@ -14,7 +14,7 @@ export type ASTNode =
   | CompoundAssignNode;
 
 export interface ProgramNode { type: 'Program'; classes: ClassNode[]; }
-export interface ClassNode { type: 'Class'; name: string; constructors: ConstructorNode[]; methods: MethodNode[]; fields: VarDeclNode[]; }
+export interface ClassNode { type: 'Class'; name: string; superClass?: string; constructors: ConstructorNode[]; methods: MethodNode[]; fields: VarDeclNode[]; }
 export interface ConstructorNode { type: 'Constructor'; name: string; params: {name: string, type: string}[]; body: ASTNode[]; line: number; }
 export interface MethodNode { type: 'Method'; name: string; returnType: string; params: {name: string, type: string}[]; body: ASTNode[]; isStatic: boolean; line: number; }
 export interface VarDeclNode { type: 'VarDecl'; varType: string; name: string; isArray: boolean; init?: ASTNode; line: number; }
@@ -113,11 +113,17 @@ export class Parser {
   // ─── Class Parsing ──────────────────────────────────────────────
 
   private parseClass(): ClassNode {
-    // Skip access modifiers
-    while (this.match(TokenType.Public, TokenType.Private, TokenType.Protected)) {}
+    // Skip access modifiers and abstract keyword
+    while (this.match(TokenType.Public, TokenType.Private, TokenType.Protected, TokenType.Abstract)) {}
     this.consume(TokenType.Class, "Expected 'class'");
     const name = this.consume(TokenType.Identifier, "Expected class name").text;
     this.currentClassName = name;
+    
+    let superClass: string | undefined = undefined;
+    if (this.match(TokenType.Extends)) {
+      superClass = this.consume(TokenType.Identifier, "Expected superclass name after 'extends'").text;
+    }
+    
     this.consume(TokenType.LBrace, "Expected '{' after class name");
     
     const constructors: ConstructorNode[] = [];
@@ -129,7 +135,7 @@ export class Parser {
     }
     this.consume(TokenType.RBrace, "Expected '}' after class body");
     this.currentClassName = '';
-    return { type: 'Class', name, constructors, methods, fields };
+    return { type: 'Class', name, superClass, constructors, methods, fields };
   }
 
   private parseClassMember(
@@ -141,8 +147,8 @@ export class Parser {
     const startPos = this.current;
     let isStatic = false;
 
-    // Skip access modifiers, collect static
-    while (this.match(TokenType.Public, TokenType.Private, TokenType.Protected, TokenType.Static)) {
+    // Skip access modifiers, abstract, collect static
+    while (this.match(TokenType.Public, TokenType.Private, TokenType.Protected, TokenType.Static, TokenType.Abstract)) {
       if (this.previous().type === TokenType.Static) {
         isStatic = true;
       }
@@ -174,8 +180,13 @@ export class Parser {
       // Method
       // We already consumed '(', so parse params from here
       const params = this.parseParamsAfterLParen();
-      this.consume(TokenType.LBrace, "Expected '{' before method body");
-      const body = this.parseBlock();
+      let body: ASTNode[] = [];
+      if (this.match(TokenType.Semicolon)) {
+        // Abstract method
+      } else {
+        this.consume(TokenType.LBrace, "Expected '{' before method body");
+        body = this.parseBlock();
+      }
       methods.push({ type: 'Method', name: memberName, returnType: typeStr, params, body, isStatic, line: memberLine });
     } else {
       // Field
@@ -588,6 +599,15 @@ export class Parser {
     // this
     if (this.match(TokenType.This)) {
       return { type: 'This', line };
+    }
+
+    // super
+    if (this.match(TokenType.Super)) {
+      if (this.match(TokenType.LParen)) {
+        const args = this.parseArgList();
+        return { type: 'MethodCall', name: 'super', args, line };
+      }
+      return { type: 'Identifier', name: 'super', line }; // Treat bare super as an identifier if needed
     }
 
     // new

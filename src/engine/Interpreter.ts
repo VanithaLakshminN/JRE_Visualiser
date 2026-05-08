@@ -126,6 +126,20 @@ export class Interpreter {
     return this.stepCount < this.stepLimit;
   }
 
+  // ─── Inheritance Helpers ─────────────────────────────────────────
+
+  private findMethod(className: string, methodName: string): MethodNode | undefined {
+    let currentClass = className;
+    while (currentClass) {
+      const cls = this.classRegistry[currentClass];
+      if (!cls) break;
+      const method = cls.methods.find(m => m.name === methodName);
+      if (method) return method;
+      currentClass = cls.superClass || '';
+    }
+    return undefined;
+  }
+
   // ─── Method and Constructor Execution ───────────────────────────
 
   private executeMethod(method: MethodNode, thisRef: string | null, args?: any[]): any {
@@ -551,12 +565,16 @@ export class Interpreter {
 
     const cls = this.classRegistry[className];
     
-    // Initialize fields from class definition
+    // Initialize fields from class definition and all superclasses
     const fields: Record<string, any> = {};
-    if (cls) {
-      cls.fields.forEach(f => {
-        fields[f.name] = f.init ? this.evaluateExpression(f.init) : this.defaultValue(f.varType);
+    let currentCls = cls;
+    while (currentCls) {
+      currentCls.fields.forEach(f => {
+        if (!(f.name in fields)) {
+          fields[f.name] = f.init ? this.evaluateExpression(f.init) : this.defaultValue(f.varType);
+        }
       });
+      currentCls = currentCls.superClass ? this.classRegistry[currentCls.superClass] : undefined;
     }
 
     this.heap[objId] = { id: objId, type: className, fields };
@@ -606,6 +624,27 @@ export class Interpreter {
   private evaluateMethodCall(expr: any): any {
     const methodName = expr.name;
     const args = (expr.args || []).map((a: ASTNode) => this.evaluateExpression(a));
+
+    // super(...) constructor call
+    if (methodName === 'super') {
+      const thisRef = this.getThisRef();
+      if (thisRef && typeof thisRef === 'string') {
+        const objId = thisRef.substring(1);
+        const heapObj = this.heap[objId];
+        if (heapObj) {
+          const cls = this.classRegistry[heapObj.type];
+          if (cls && cls.superClass) {
+            const superCls = this.classRegistry[cls.superClass];
+            if (superCls && superCls.constructors.length > 0) {
+              const ctor = superCls.constructors.find(c => c.params.length === args.length) || superCls.constructors[0];
+              this.executeConstructor(ctor, objId, args);
+              return undefined;
+            }
+          }
+        }
+      }
+      return undefined;
+    }
 
     // System.gc()
     if (expr.object) {
@@ -686,7 +725,7 @@ export class Interpreter {
         return undefined;
       }
 
-      const method = cls.methods.find(m => m.name === methodName);
+      const method = this.findMethod(heapObj.type, methodName);
       if (method) {
         return this.executeMethod(method, objRef, args);
       } else {
@@ -695,11 +734,23 @@ export class Interpreter {
       }
     }
 
-    // Static/local method call: methodName()
-    // Search all classes for a matching method
+    // Static or implicit 'this' method call: methodName()
+    const thisRef = this.getThisRef();
+    if (thisRef && typeof thisRef === 'string') {
+      const objId = thisRef.substring(1);
+      const heapObj = this.heap[objId];
+      if (heapObj) {
+        const method = this.findMethod(heapObj.type, methodName);
+        if (method) {
+          return this.executeMethod(method, thisRef, args);
+        }
+      }
+    }
+
+    // Search all classes for a matching method (fallback for actual static methods)
     for (const cls of Object.values(this.classRegistry)) {
       const method = cls.methods.find(m => m.name === methodName);
-      if (method) {
+      if (method && method.isStatic) {
         return this.executeMethod(method, null, args);
       }
     }
