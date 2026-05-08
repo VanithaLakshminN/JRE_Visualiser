@@ -10,6 +10,12 @@ Rather than relying on flat boxes and static text, the JRE Visualizer uses a fut
 
 ---
 
+## Live Demo
+
+🚀 **Experience the Visualizer live here:** [https://jre-visualiser-imyw.vercel.app](https://jre-visualiser-imyw.vercel.app)
+
+---
+
 ## What Does This Project Do?
 
 When a user inputs Java code, the visualizer doesn't just compile and print output to a console. It actively steps through the execution, visualizing the internal state of the JVM memory architecture across four distinct quadrants:
@@ -96,6 +102,12 @@ To run the JRE Visualizer on your own machine:
    npm run dev
    ```
 4. Open `http://localhost:5173` in your browser.
+
+---
+
+## Deployment
+
+This project is deployed on **Vercel** as a static single-page application. Because the custom Java execution engine runs entirely on the client-side within the browser, the application requires absolutely no backend infrastructure or containerized JVM to execute code securely. Vercel handles the rapid edge-caching and CI/CD directly from this GitHub repository.
 
 ---
 
