@@ -1,6 +1,8 @@
 # JRE Visualizer: Cinematic JVM Runtime Simulator
 
-![JRE Visualizer](src/assets/hero.png) *(Note: Ensure this asset path is correct or replace with a screenshot)*
+![JRE Visualizer](src/assets/sample-output.png)
+
+*A cinematic, browser-based educational tool designed to demystify how the Java Virtual Machine (JVM) executes code under the hood.*
 
 **JRE Visualizer** is a cinematic, browser-based educational tool designed to demystify how the Java Virtual Machine (JVM) executes code under the hood. It bridges the gap between static code and dynamic memory behavior by providing a real-time, highly visual, and interactive representation of memory allocations, scope tracking, and garbage collection.
 
