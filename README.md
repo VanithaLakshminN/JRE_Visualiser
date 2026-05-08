@@ -41,6 +41,29 @@ As the step index changes, the UI reacts to the current state of the store:
 
 ---
 
+## Project Structure (For Recruiters & Developers)
+
+The codebase follows a strict separation of concerns, dividing the complex parsing logic from the React rendering layer:
+
+```text
+src/
+├── components/           # UI Layer (React)
+│   ├── layout/           # Main HUD wrappers (MainLayout.tsx, BottomToolbar.tsx)
+│   └── quadrants/        # The 4 JVM panels: Stack, Heap, Metaspace, ExecutionFlow
+│                         # (Also contains ReferenceArrows.tsx for live SVG mappings)
+├── engine/               # Simulation Engine (No UI logic)
+│   ├── parser/           # JavaParser.ts (Loads WASM, runs Tree-Sitter AST generation)
+│   └── interpreter/      # EducationalInterpreter.ts (Walks AST, emits JVM events)
+├── store/                # Global State
+│   └── useJvmStore.ts    # Zustand store; holds the timeline of execution events
+├── education/            # Educational explanations and hints mapping
+├── data/                 # Sample Java code demos loaded into the editor
+├── types.ts              # Global TypeScript interfaces for memory structures
+└── index.css             # Tailwind utilities & custom CSS animations
+```
+
+---
+
 ## Technical Stack
 - **Frontend Framework**: React 19 + TypeScript + Vite
 - **Styling**: Tailwind CSS (Custom glassmorphism, topological background grids)
