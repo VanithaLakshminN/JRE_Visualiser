@@ -6,7 +6,7 @@ import type { Token } from './Lexer';
 export type ASTNode = 
   | ProgramNode | ClassNode | MethodNode | ConstructorNode
   | VarDeclNode | AssignNode | FieldAssignNode
-  | PrintNode | IfNode | WhileNode | ForNode | ReturnNode
+  | PrintNode | IfNode | WhileNode | ForNode | EnhancedForNode | ReturnNode
   | MethodCallNode | BinaryOpNode | UnaryOpNode
   | LiteralNode | IdentifierNode | ThisNode
   | ObjectCreationNode | FieldAccessNode
@@ -25,6 +25,7 @@ export interface PrintNode { type: 'Print'; expression: ASTNode; line: number; }
 export interface IfNode { type: 'If'; condition: ASTNode; thenBranch: ASTNode[]; elseBranch?: ASTNode[]; line: number; }
 export interface WhileNode { type: 'While'; condition: ASTNode; body: ASTNode[]; line: number; }
 export interface ForNode { type: 'For'; init?: ASTNode; condition?: ASTNode; update?: ASTNode; body: ASTNode[]; line: number; }
+export interface EnhancedForNode { type: 'EnhancedFor'; varType: string; name: string; iterable: ASTNode; body: ASTNode[]; line: number; }
 export interface ReturnNode { type: 'Return'; value?: ASTNode; line: number; }
 export interface MethodCallNode { type: 'MethodCall'; name: string; args: ASTNode[]; object?: ASTNode; line: number; }
 export interface BinaryOpNode { type: 'BinaryOp'; left: ASTNode; operator: string; right: ASTNode; line: number; }
@@ -370,16 +371,34 @@ export class Parser {
     return { type: 'VarDecl', varType: typeStr, name: nameTk.text, isArray, init, line: nameTk.line };
   }
 
-  private parseFor(line: number): ForNode {
+  private parseFor(line: number): ForNode | EnhancedForNode {
     this.consume(TokenType.LParen, "Expected '('");
     
     // Init
     let init: ASTNode | undefined;
-    if (!this.match(TokenType.Semicolon)) {
-      // Check if it's a variable declaration
-      if (this.check(TokenType.Int) || this.check(TokenType.Double) || this.check(TokenType.Boolean) || this.check(TokenType.String)) {
-        const typeStr = this.parseTypeString()!;
+    
+    // Check for variable declaration
+    if (this.check(TokenType.Int) || this.check(TokenType.Double) || this.check(TokenType.Boolean) || this.check(TokenType.String) || this.check(TokenType.Identifier)) {
+      const startPos = this.current;
+      const typeStr = this.parseTypeString();
+      if (typeStr && this.check(TokenType.Identifier)) {
         const nameTk = this.consume(TokenType.Identifier, "Expected variable name");
+        
+        // Is it Enhanced For?
+        if (this.match(TokenType.Colon)) {
+          const iterable = this.parseExpression();
+          this.consume(TokenType.RParen, "Expected ')'");
+          let body: ASTNode[];
+          if (this.match(TokenType.LBrace)) {
+            body = this.parseBlock();
+          } else {
+            const singleStmt = this.parseStatement();
+            body = singleStmt ? [singleStmt] : [];
+          }
+          return { type: 'EnhancedFor', varType: typeStr, name: nameTk.text, iterable, body, line };
+        }
+        
+        // Otherwise, standard For with variable decl
         let initExpr: ASTNode | undefined;
         if (this.match(TokenType.Assign)) {
           initExpr = this.parseExpression();
@@ -387,9 +406,16 @@ export class Parser {
         this.consume(TokenType.Semicolon, "Expected ';'");
         init = { type: 'VarDecl', varType: typeStr, name: nameTk.text, isArray: false, init: initExpr, line: nameTk.line } as VarDeclNode;
       } else {
-        init = this.parseExpression();
-        this.consume(TokenType.Semicolon, "Expected ';'");
+        // Backtrack if it wasn't a valid declaration
+        this.current = startPos;
+        if (!this.match(TokenType.Semicolon)) {
+          init = this.parseExpression();
+          this.consume(TokenType.Semicolon, "Expected ';'");
+        }
       }
+    } else if (!this.match(TokenType.Semicolon)) {
+      init = this.parseExpression();
+      this.consume(TokenType.Semicolon, "Expected ';'");
     }
 
     // Condition
@@ -607,7 +633,12 @@ export class Parser {
 
     // new
     if (this.match(TokenType.New)) {
-      const className = this.consume(TokenType.Identifier, "Expected class name after 'new'").text;
+      let className = '';
+      if (this.match(TokenType.Int, TokenType.Double, TokenType.Boolean, TokenType.String, TokenType.Char, TokenType.Float, TokenType.Long)) {
+        className = this.previous().text;
+      } else {
+        className = this.consume(TokenType.Identifier, "Expected class name after 'new'").text;
+      }
       
       // new ClassName[size] — array
       if (this.match(TokenType.LBracket)) {

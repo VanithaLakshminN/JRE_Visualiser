@@ -397,6 +397,37 @@ export class Interpreter {
         }
         break;
       }
+      case 'EnhancedFor': {
+        const iterable = this.evaluateExpression(stmt.iterable);
+        if (typeof iterable === 'string' && iterable.startsWith('@')) {
+          const objId = iterable.substring(1);
+          const heapObj = this.heap[objId];
+          if (heapObj && heapObj.type.endsWith('[]')) {
+            const length = Object.keys(heapObj.fields).length;
+            let iters = 0;
+            while (iters < length && this.guardStepLimit()) {
+              const val = heapObj.fields[`[${iters}]`];
+              
+              // Set loop variable for this iteration
+              this.setVar(stmt.name, val);
+              this.steps.push({
+                lineNumber: stmt.line,
+                action: 'SET_VAR',
+                payload: { name: stmt.name, type: stmt.varType, value: this.displayValue(val), referenceId: this.refId(val) },
+                explanation: `Enhanced for: ${stmt.name} = ${this.displayValue(val)}`
+              });
+
+              for (const s of stmt.body) {
+                if (!this.guardStepLimit()) break;
+                const result = this.executeStatement(s);
+                if (result && result.__return) return result;
+              }
+              iters++;
+            }
+          }
+        }
+        break;
+      }
     }
 
     return undefined;

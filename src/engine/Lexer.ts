@@ -24,7 +24,7 @@ export const TokenType = {
   // Delimiters
   LBrace: 'LBrace', RBrace: 'RBrace', LParen: 'LParen', RParen: 'RParen',
   LBracket: 'LBracket', RBracket: 'RBracket',
-  Semicolon: 'Semicolon', Comma: 'Comma', Dot: 'Dot',
+  Semicolon: 'Semicolon', Comma: 'Comma', Dot: 'Dot', Colon: 'Colon',
 
   // Special
   SystemOutPrintln: 'SystemOutPrintln',
@@ -178,6 +178,7 @@ export class Lexer {
       case '[': return { type: TokenType.LBracket, text: c, line: this.line };
       case ']': return { type: TokenType.RBracket, text: c, line: this.line };
       case ';': return { type: TokenType.Semicolon, text: c, line: this.line };
+      case ':': return { type: TokenType.Colon, text: c, line: this.line };
       case ',': return { type: TokenType.Comma, text: c, line: this.line };
       case '.': return { type: TokenType.Dot, text: c, line: this.line };
       case '%': return { type: TokenType.Modulo, text: c, line: this.line };
