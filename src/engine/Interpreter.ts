@@ -567,7 +567,7 @@ export class Interpreter {
     
     // Initialize fields from class definition and all superclasses
     const fields: Record<string, any> = {};
-    let currentCls = cls;
+    let currentCls: ClassNode | undefined = cls;
     while (currentCls) {
       currentCls.fields.forEach(f => {
         if (!(f.name in fields)) {

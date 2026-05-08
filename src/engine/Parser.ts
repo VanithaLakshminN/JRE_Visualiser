@@ -44,7 +44,6 @@ export interface ArrayAssignNode { type: 'ArrayAssign'; array: ASTNode; index: A
 export class Parser {
   private tokens: Token[];
   private current: number = 0;
-  private currentClassName: string = ''; // Track which class we're parsing (for constructor detection)
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -117,7 +116,6 @@ export class Parser {
     while (this.match(TokenType.Public, TokenType.Private, TokenType.Protected, TokenType.Abstract)) {}
     this.consume(TokenType.Class, "Expected 'class'");
     const name = this.consume(TokenType.Identifier, "Expected class name").text;
-    this.currentClassName = name;
     
     let superClass: string | undefined = undefined;
     if (this.match(TokenType.Extends)) {
@@ -134,7 +132,6 @@ export class Parser {
       this.parseClassMember(name, constructors, methods, fields);
     }
     this.consume(TokenType.RBrace, "Expected '}' after class body");
-    this.currentClassName = '';
     return { type: 'Class', name, superClass, constructors, methods, fields };
   }
 
@@ -144,7 +141,6 @@ export class Parser {
     methods: MethodNode[],
     fields: VarDeclNode[]
   ) {
-    const startPos = this.current;
     let isStatic = false;
 
     // Skip access modifiers, abstract, collect static
@@ -202,7 +198,6 @@ export class Parser {
 
   /** Parse a type string like "int", "String", "int[]", "Person" */
   private parseTypeString(): string | null {
-    const token = this.peek();
     let typeStr: string;
 
     if (this.match(TokenType.Void)) {
