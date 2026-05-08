@@ -108,40 +108,10 @@ public class Main {
         isRunning: true,
         dynamicSteps: steps,
         currentStepIndex: 0,
-        output: ['Visualization running...'],
+        output: ['Compilation successful. Execution started...'],
       });
-    }
-
-    // Step 3: Attempt backend execution for actual Java output (non-blocking for visualization)
-    try {
-      const response = await fetch('http://localhost:3001/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: editorCode, input: standardInput })
-      });
-      
-      const data = await response.json();
-      
-      if (!data.success) {
-        set((state) => ({ 
-          compileError: data.output, 
-          isRunning: false, 
-          output: [`Compile Error: ${data.output}`] 
-        }));
-      } else {
-        set((state) => ({ 
-          output: ['Execution finished.', '--- Output ---', ...data.output.split('\n')],
-        }));
-      }
-    } catch (error: any) {
-      // Backend not available — visualization still runs, just show a note in output
-      set((state) => ({ 
-        output: steps.length > 0 
-          ? ['Visualization running (backend server not available for console output).']
-          : ['Backend server not running. Start it with: npm run server'],
-        isRunning: steps.length > 0,
-        dynamicSteps: steps,
-      }));
+    } else {
+      set({ output: ['Failed to parse or visualize code.'] });
     }
   },
   
