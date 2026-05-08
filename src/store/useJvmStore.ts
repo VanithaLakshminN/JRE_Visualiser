@@ -75,7 +75,7 @@ public class Main {
       const parser = new Parser(tokens);
       const ast = parser.parse();
       const interpreter = new Interpreter(ast);
-      steps = interpreter.generateEventStream();
+      steps = interpreter.generateEventStream(standardInput);
     } catch (e: any) {
       console.warn("Frontend parser could not generate full visualization:", e.message);
       

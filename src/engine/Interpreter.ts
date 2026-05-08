@@ -20,18 +20,21 @@ export class Interpreter {
   private objIdCounter = 0;
   private stepLimit = 500;
   private stepCount = 0;
+  private scannerTokens: string[] = [];
   
   constructor(ast: ProgramNode) {
     this.ast = ast;
   }
 
-  public generateEventStream(): ExecutionStep[] {
+  public generateEventStream(standardInput: string = ''): ExecutionStep[] {
     this.steps = [];
     this.classRegistry = {};
     this.heap = {};
     this.callStack = [];
     this.objIdCounter = 0;
     this.stepCount = 0;
+    // Split input by whitespace for nextInt/next, or just keep lines. Let's tokenize by whitespace and newlines for robustness.
+    this.scannerTokens = standardInput.trim() ? standardInput.trim().split(/\s+/) : [];
     
     // 1. Register all classes
     this.ast.classes.forEach(cls => {
@@ -531,6 +534,21 @@ export class Interpreter {
 
   private createObject(className: string, args: any[], line: number): string {
     const objId = this.generateObjId(className);
+    
+    // ----------------------------------------------------
+    // Scanner Mocking
+    // ----------------------------------------------------
+    if (className === 'Scanner') {
+      this.heap[objId] = { id: objId, type: className, fields: {} };
+      this.steps.push({
+        lineNumber: line,
+        action: 'ALLOC_OBJ',
+        payload: { id: objId, type: className, fields: {} },
+        explanation: `Created new Scanner object reading from standard input`
+      });
+      return `@${objId}`;
+    }
+
     const cls = this.classRegistry[className];
     
     // Initialize fields from class definition
@@ -599,6 +617,42 @@ export class Interpreter {
       }
       if (objExpr.type === 'Identifier' && objExpr.name === 'System' && methodName === 'exit') {
         return undefined;
+      }
+      
+      // ----------------------------------------------------
+      // Scanner Mocking
+      // ----------------------------------------------------
+      const objRef = this.evaluateExpression(objExpr);
+      if (typeof objRef === 'string' && objRef.startsWith('@')) {
+        const objId = objRef.substring(1);
+        const heapObj = this.heap[objId];
+        
+        if (heapObj && heapObj.type === 'Scanner') {
+          let token = this.scannerTokens.length > 0 ? this.scannerTokens.shift() : "";
+          let parsedValue: any = token;
+          
+          if (methodName === 'nextInt') {
+            parsedValue = token ? parseInt(token, 10) : 0;
+            if (isNaN(parsedValue)) parsedValue = 0;
+            this.steps.push({
+              lineNumber: expr.line,
+              action: 'PRINT',
+              payload: { text: `[Scanner input: ${parsedValue}]` },
+              explanation: `Scanner read int: ${parsedValue}`
+            });
+            return parsedValue;
+          } 
+          
+          if (methodName === 'nextLine' || methodName === 'next') {
+            this.steps.push({
+              lineNumber: expr.line,
+              action: 'PRINT',
+              payload: { text: `[Scanner input: "${parsedValue}"]` },
+              explanation: `Scanner read string: "${parsedValue}"`
+            });
+            return parsedValue || "";
+          }
+        }
       }
     }
 
